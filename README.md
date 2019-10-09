@@ -6,6 +6,8 @@
 - **000.ino** :
 primeira versão do programa rodando a partir desta data no laboratório.
 
+2019-10-06
+
 - **000.ino** :
 segunda versão do programa, inserindo registro de informações do sharp e outras modificações
 na estrutura do código para facilitar o processamento. Esta versão é a testa no primeiro
