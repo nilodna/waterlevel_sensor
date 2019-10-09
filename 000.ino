@@ -1,5 +1,3 @@
-
- // Date and time functions using a DS1307 RTC connected via I2C and Wire lib
 #include <Wire.h>
 #include <SPI.h>
 #include <SD.h>
@@ -9,29 +7,24 @@
 
 Adafruit_BMP280 bmp; 
 
-long duration;
-double cm;
-const int pingPin = 7;
-const int chipSelect = 10;
+long duration;              // duracao do eco do sensor de ultrassom
+double cm;                  // distancia em cm sensor ultrassom
+const int pingPin = 7;      // pino do ultrassom
+const int chipSelect = 10;  // chipselect do shield SD
+int sharp;                  // leitura analogica do sensor otico (pino A0)
+float distance;             // distancia calculada com o sensor otico
 
 void setup() {
-  // Open serial communications and wait for port to open:
+
   Serial.begin(9600);
-  while (!Serial) {
-    ; // wait for serial port to connect. Needed for native USB port only
-  }
-
-
   Serial.print("Initializing SD card...");
 
-  // see if the card is present and can be initialized:
   if (!SD.begin(chipSelect)) {
     Serial.println("Card failed, or not present");
-    // don't do anything more:
-    return;
   }
-  Serial.println("card initialized.");
-
+  else{
+    Serial.println("card initialized.");
+  }
 
 if (!bmp.begin()) {
     Serial.println(F("Could not find a valid BMP280 sensor, check wiring!"));
@@ -46,9 +39,8 @@ if (!bmp.begin()) {
                   Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
 
 
-  // so you have to close this one before opening another.
   File dataFile = SD.open("datalog.txt", FILE_WRITE);
-    dataFile.write("Ano Mes Dia H M S Dist(cm) T(°C) P(Pa)");
+    dataFile.write("Ano Mes Dia H M S Dist(cm) Dist2(cm) T(°C) P(Pa)"); //cabecalho de dados
     dataFile.println();
     dataFile.close();
 
@@ -57,8 +49,7 @@ if (!bmp.begin()) {
 
 void loop() {
 
-    tmElements_t tm;
-
+  tmElements_t tm;    //objeto para RTC
   
   // make a string for assembling the data to log:
   String dataString = "";
@@ -71,41 +62,44 @@ void loop() {
   digitalWrite(pingPin, LOW);
 
   pinMode(pingPin, INPUT);
-  duration = pulseIn(pingPin, HIGH , 10000 );
+  duration = pulseIn(pingPin, HIGH , 30000 );
 
-    cm = duration*0.017;
+  sharp = analogRead(A0);
 
+
+  if (RTC.read(tm)) {
+    dataString += tmYearToCalendar(tm.Year);
     dataString += ' ';
-    dataString += cm;
-
+    dataString += tm.Month;
     dataString += ' ';
-    
-    dataString += bmp.readTemperature();
+    dataString += tm.Day;
     dataString += ' ';
-    
-    dataString += bmp.readPressure();
+    dataString += tm.Hour;
+    dataString += ' ';
+    dataString += tm.Minute;
+    dataString += ' ';
+    dataString += tm.Second;
+    dataString += ' ';
 
-  // open the file. note that only one file can be open at a time,
-  // so you have to close this one before opening another.
+  } 
+
+  cm = duration*0.017;
+  dataString += cm;
+  dataString += ' ';
+
+  distance = 9462.0/(sharp - 16.92);
+  dataString += distance;
+  dataString += ' ';
+  
+  dataString += bmp.readTemperature();
+  dataString += ' ';
+  
+  dataString += bmp.readPressure();
+
   File dataFile = SD.open("datalog.txt", FILE_WRITE);
 
   // if the file is available, write to it:
   if (dataFile) {
-      if (RTC.read(tm)) {
-        dataFile.print(tmYearToCalendar(tm.Year));
-        dataFile.print(' ');
-        dataFile.print(tm.Month);
-        dataFile.write(' ');
-        dataFile.print(tm.Day);
-        dataFile.write(' ');
-        dataFile.print(tm.Hour);
-        dataFile.write(' ');
-        dataFile.print(tm.Minute);
-        dataFile.write(' ');
-        dataFile.print(tm.Second);
-        dataFile.print(' ');
-      } 
-    
     dataFile.println(dataString);
     dataFile.close();
     // print to the serial port too:
@@ -115,7 +109,7 @@ void loop() {
   else {
     Serial.println("error opening datalog.txt");
   }
-
-delay(1000);
+    Serial.println(dataString);
+delay(500);
   
 }
